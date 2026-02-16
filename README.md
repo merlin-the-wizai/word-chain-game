@@ -68,7 +68,8 @@ The game will open at `http://localhost:5173`
 - Progressive letter reveals on wrong guesses
 - Auto-advance when all letters revealed (word shown in red with strikethrough)
 - Input jiggle animation on wrong guesses
-- Random word chain selection from repository of 10 chains
+- **Dynamic word chains generated via Datamuse API** - never the same game twice!
+- Fallback to 10 hardcoded chains if API fails
 - Timer shows whole seconds (no decimals)
 - Confetti celebration on win
-- New random chain on replay
+- New dynamically generated chain on every play

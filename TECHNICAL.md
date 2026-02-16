@@ -175,11 +175,46 @@ Wrong guesses trigger a visual shake effect:
 ```
 The animation runs for 500ms and the input border turns red during the shake.
 
-### Multiple Word Chains
-The server now contains 10 different word chains. Each time you play (or click "Play Again"), a random chain is selected:
-- `GET /api/chain` returns a random chain from the repository
-- No repetition tracking (could play the same chain twice in a row)
-- Each chain has 6 words forming 5 phrase pairs
+### Dynamic Word Chain Generation via Datamuse API
+
+The game now generates **unique word chains on-the-fly** using the Datamuse API:
+
+**How it works:**
+1. Pick a random seed word (e.g., "Bird", "Snow", "Water")
+2. Query Datamuse API for words that commonly pair with it
+3. Select a candidate word that hasn't been used yet
+4. Repeat until we have 6 words
+5. If generation fails, fall back to 10 hardcoded chains
+
+**API Used:**
+```typescript
+https://api.datamuse.com/words?rel_jja={word}
+```
+- `rel_jja` = words that modify or follow the given word
+- Example: "bird" → "watching", "song", "cage", etc.
+- Returns words that form common phrases
+
+**Chain Generation Logic:**
+```typescript
+async function generateWordChain() {
+  const chain = [randomSeedWord];
+  
+  while (chain.length < 6) {
+    const candidates = await fetchDatamuse(currentWord);
+    const unusedCandidates = candidates.filter(w => !chain.includes(w));
+    chain.push(randomPick(unusedCandidates));
+  }
+  
+  return chain;
+}
+```
+
+**Fallback Safety:**
+- If API is down or returns no results → use hardcoded chains
+- If chain generation fails mid-build → use hardcoded chains
+- 10 quality-tested fallback chains always available
+
+**Result:** Every game is unique, with natural phrase pairings generated from real language data.
 
 ### Timer Display
 Changed from millisecond precision (XX.XX) to whole seconds only:
