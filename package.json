@@ -1,0 +1,13 @@
+{
+  "name": "word-chain-game",
+  "version": "1.0.0",
+  "description": "A 6-word phrase chain guessing game",
+  "scripts": {
+    "dev": "cd client && npm run dev",
+    "server": "cd server && npm run dev",
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install"
+  },
+  "keywords": ["game", "word", "chain", "puzzle"],
+  "author": "Merlin",
+  "license": "MIT"
+}
