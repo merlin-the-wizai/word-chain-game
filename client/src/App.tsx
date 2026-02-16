@@ -6,10 +6,12 @@ interface GameState {
   currentWordIndex: number;
   revealedLetters: number;
   completedWords: boolean[];
+  failedWords: boolean[];        // Words that were fully revealed but not guessed
   isGameComplete: boolean;
   startTime: number;
   endTime: number | null;
   guessInput: string;
+  shouldJiggle: boolean;          // Trigger jiggle animation
 }
 
 function App() {
@@ -18,10 +20,12 @@ function App() {
     currentWordIndex: 0,
     revealedLetters: 1, // Always show first letter
     completedWords: [],
+    failedWords: [],
     isGameComplete: false,
     startTime: 0,
     endTime: null,
     guessInput: '',
+    shouldJiggle: false,
   });
 
   const [elapsedTime, setElapsedTime] = useState<number>(0);
@@ -37,8 +41,8 @@ function App() {
         setGameState((prev) => ({
           ...prev,
           wordChain: chain,
-          completedWords: new Array(chain.length).fill(false),
           completedWords: [true, ...new Array(chain.length - 1).fill(false)], // First word revealed
+          failedWords: new Array(chain.length).fill(false),
           currentWordIndex: 1, // Start guessing from second word
           startTime,
         }));
@@ -112,38 +116,90 @@ function App() {
         }));
       }
     } else {
-      // Wrong guess - reveal one more letter
+      // Wrong guess
       const maxLetters = currentWord.length;
-      setGameState((prev) => ({
-        ...prev,
-        revealedLetters: Math.min(prev.revealedLetters + 1, maxLetters),
-        guessInput: '',
-      }));
+      const newRevealedLetters = gameState.revealedLetters + 1;
+
+      // Trigger jiggle animation
+      setGameState((prev) => ({ ...prev, shouldJiggle: true, guessInput: '' }));
+      setTimeout(() => {
+        setGameState((prev) => ({ ...prev, shouldJiggle: false }));
+      }, 500);
+
+      // Check if we've revealed all letters
+      if (newRevealedLetters >= maxLetters) {
+        // Word fully revealed but not guessed - mark as failed and move on
+        const newFailedWords = [...gameState.failedWords];
+        newFailedWords[gameState.currentWordIndex] = true;
+
+        const nextIndex = gameState.currentWordIndex + 1;
+        const isComplete = nextIndex >= gameState.wordChain.length;
+
+        if (isComplete) {
+          // Game complete (even with failed words)
+          const endTime = Date.now();
+          if (timerRef.current) clearInterval(timerRef.current);
+          
+          setGameState((prev) => ({
+            ...prev,
+            failedWords: newFailedWords,
+            isGameComplete: true,
+            endTime,
+          }));
+        } else {
+          // Move to next word
+          setGameState((prev) => ({
+            ...prev,
+            failedWords: newFailedWords,
+            currentWordIndex: nextIndex,
+            revealedLetters: 1,
+          }));
+        }
+      } else {
+        // Reveal one more letter
+        setGameState((prev) => ({
+          ...prev,
+          revealedLetters: newRevealedLetters,
+        }));
+      }
     }
   };
 
   const handlePlayAgain = () => {
-    // Reset game
-    const startTime = Date.now();
-    setGameState((prev) => ({
-      ...prev,
-      currentWordIndex: 1,
-      revealedLetters: 1,
-      completedWords: [true, ...new Array(prev.wordChain.length - 1).fill(false)],
-      isGameComplete: false,
-      startTime,
-      endTime: null,
-      guessInput: '',
-    }));
-    setElapsedTime(0);
+    // Fetch a new word chain
+    fetch('/api/chain')
+      .then((res) => res.json())
+      .then((chain: string[]) => {
+        const startTime = Date.now();
+        setGameState((prev) => ({
+          ...prev,
+          wordChain: chain,
+          currentWordIndex: 1,
+          revealedLetters: 1,
+          completedWords: [true, ...new Array(chain.length - 1).fill(false)],
+          failedWords: new Array(chain.length).fill(false),
+          isGameComplete: false,
+          startTime,
+          endTime: null,
+          guessInput: '',
+          shouldJiggle: false,
+        }));
+        setElapsedTime(0);
+      })
+      .catch((err) => console.error('Failed to fetch word chain:', err));
   };
 
   const renderWord = (word: string, wordIndex: number) => {
     const isCompleted = gameState.completedWords[wordIndex];
+    const isFailed = gameState.failedWords[wordIndex];
     const isCurrent = wordIndex === gameState.currentWordIndex;
 
     if (isCompleted) {
       return <span className="word-revealed">{word}</span>;
+    }
+
+    if (isFailed) {
+      return <span className="word-failed">{word}</span>;
     }
 
     if (!isCurrent) {
@@ -166,7 +222,7 @@ function App() {
   };
 
   const formatTime = (seconds: number): string => {
-    return seconds.toFixed(2);
+    return Math.floor(seconds).toString();
   };
 
   const currentTime = gameState.isGameComplete && gameState.endTime
@@ -213,7 +269,7 @@ function App() {
                 setGameState((prev) => ({ ...prev, guessInput: e.target.value }))
               }
               placeholder="Enter your guess..."
-              className="guess-input"
+              className={`guess-input ${gameState.shouldJiggle ? 'jiggle' : ''}`}
               autoFocus
             />
             <button type="submit" className="submit-btn">

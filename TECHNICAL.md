@@ -10,10 +10,12 @@ interface GameState {
   currentWordIndex: number;      // Which word we're guessing (0-5)
   revealedLetters: number;       // How many letters to show
   completedWords: boolean[];     // Track which words are solved
+  failedWords: boolean[];        // Words that were fully revealed but not guessed
   isGameComplete: boolean;       // Game over flag
   startTime: number;             // When timer started (ms)
   endTime: number | null;        // When game finished (ms)
   guessInput: string;            // Current input value
+  shouldJiggle: boolean;         // Trigger jiggle animation on wrong guess
 }
 ```
 
@@ -38,11 +40,27 @@ interface GameState {
 
 ```typescript
 // On wrong guess:
-setGameState((prev) => ({
-  ...prev,
-  revealedLetters: Math.min(prev.revealedLetters + 1, maxLetters),
-  guessInput: '',
-}));
+const newRevealedLetters = gameState.revealedLetters + 1;
+
+// Trigger jiggle animation
+setGameState((prev) => ({ ...prev, shouldJiggle: true, guessInput: '' }));
+setTimeout(() => {
+  setGameState((prev) => ({ ...prev, shouldJiggle: false }));
+}, 500);
+
+// Check if we've revealed all letters
+if (newRevealedLetters >= maxLetters) {
+  // Word fully revealed but not guessed - mark as failed and auto-advance
+  const newFailedWords = [...gameState.failedWords];
+  newFailedWords[gameState.currentWordIndex] = true;
+  // ... move to next word
+} else {
+  // Reveal one more letter
+  setGameState((prev) => ({
+    ...prev,
+    revealedLetters: newRevealedLetters,
+  }));
+}
 ```
 
 ### Rendering Logic:
@@ -112,7 +130,11 @@ const currentTime = gameState.isGameComplete && gameState.endTime
   ? (gameState.endTime - gameState.startTime) / 1000  // Final frozen time
   : elapsedTime;                                       // Live updating time
 
-<div className="timer">⏱️ Time: {currentTime.toFixed(2)}s</div>
+const formatTime = (seconds: number): string => {
+  return Math.floor(seconds).toString();  // Whole seconds only
+};
+
+<div className="timer">⏱️ Time: {formatTime(currentTime)}s</div>
 ```
 
 ### Why This Works:
@@ -129,6 +151,41 @@ const currentTime = gameState.isGameComplete && gameState.endTime
 4. Display frozen → shows (endTime - startTime)
 5. Play Again → reset startTime, restart interval
 ```
+
+---
+
+## New Features
+
+### Auto-Advance on Full Reveal
+When all letters of a word are revealed but the user hasn't guessed it, the word is:
+- Marked as "failed" (tracked in `failedWords` array)
+- Displayed in red with strikethrough styling
+- Automatically advances to the next word
+
+This prevents the game from getting stuck when a word is fully visible.
+
+### Jiggle Animation on Wrong Guess
+Wrong guesses trigger a visual shake effect:
+```css
+@keyframes jiggle {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+  20%, 40%, 60%, 80% { transform: translateX(10px); }
+}
+```
+The animation runs for 500ms and the input border turns red during the shake.
+
+### Multiple Word Chains
+The server now contains 10 different word chains. Each time you play (or click "Play Again"), a random chain is selected:
+- `GET /api/chain` returns a random chain from the repository
+- No repetition tracking (could play the same chain twice in a row)
+- Each chain has 6 words forming 5 phrase pairs
+
+### Timer Display
+Changed from millisecond precision (XX.XX) to whole seconds only:
+- Uses `Math.floor(seconds)` instead of `toFixed(2)`
+- Cleaner, less distracting display
+- Still updates every 10ms internally for smoothness
 
 ---
 

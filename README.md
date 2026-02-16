@@ -66,6 +66,9 @@ The game will open at `http://localhost:5173`
 
 - Case-insensitive matching
 - Progressive letter reveals on wrong guesses
-- Timer starts on page load, stops on completion
+- Auto-advance when all letters revealed (word shown in red with strikethrough)
+- Input jiggle animation on wrong guesses
+- Random word chain selection from repository of 10 chains
+- Timer shows whole seconds (no decimals)
 - Confetti celebration on win
-- Full state reset on replay
+- New random chain on replay

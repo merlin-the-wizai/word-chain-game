@@ -81,6 +81,11 @@ body {
   color: #28a745;
 }
 
+.word-failed {
+  color: #dc3545;
+  text-decoration: line-through;
+}
+
 .word-current {
   color: #007bff;
   display: inline-block;
@@ -125,6 +130,17 @@ body {
 
 .guess-input:focus {
   border-color: #667eea;
+}
+
+.guess-input.jiggle {
+  animation: jiggle 0.5s ease;
+  border-color: #dc3545;
+}
+
+@keyframes jiggle {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+  20%, 40%, 60%, 80% { transform: translateX(10px); }
 }
 
 .submit-btn {
